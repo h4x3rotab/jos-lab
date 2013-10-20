@@ -9,8 +9,19 @@
 static void
 putch(int ch, int *cnt)
 {
-	cputchar(ch);
-	*cnt++;
+	static int colors = 0x0700;
+	if((ch & 0xff) == '\033')
+	{
+		colors = 0xFF00 & ch;
+	}
+	else
+	{
+		if(!(ch & 0xFF00))
+			ch |= colors;
+
+		cputchar(ch);
+		*cnt++;
+	}
 }
 
 int

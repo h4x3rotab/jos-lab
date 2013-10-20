@@ -29,6 +29,10 @@ i386_init(void)
 	// Lab 2 memory management initialization functions
 	mem_init();
 
+	cprintf("------------\n");
+	cprintf("   \033[34mJ \033[32mO \033[31mS \033[37m!\n");
+	cprintf("------------\n");
+
 	// Drop into the kernel monitor.
 	while (1)
 		monitor(NULL);
