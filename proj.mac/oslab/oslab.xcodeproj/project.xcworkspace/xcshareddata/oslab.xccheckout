@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>41110459-7105-43BA-81D7-B9F39DE756E8</string>
+	<key>IDESourceControlProjectName</key>
+	<string>oslab</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>CA54B49D-B40C-4AE4-A418-E6887905AE2E</key>
+		<string>http://pdos.csail.mit.edu/6.828/2012/jos.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>proj.mac/oslab/oslab.xcodeproj/project.xcworkspace</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>CA54B49D-B40C-4AE4-A418-E6887905AE2E</key>
+		<string>../../../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>http://pdos.csail.mit.edu/6.828/2012/jos.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>110</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>CA54B49D-B40C-4AE4-A418-E6887905AE2E</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>CA54B49D-B40C-4AE4-A418-E6887905AE2E</string>
+			<key>IDESourceControlWCCName</key>
+			<string>lab</string>
+		</dict>
+	</array>
+</dict>
+</plist>
