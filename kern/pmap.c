@@ -162,6 +162,7 @@ mem_init(void)
 	// Your code goes here:
 
 	pages = (struct PageInfo *)boot_alloc(npages * sizeof(struct PageInfo));
+	cprintf("-------%x\n", npages * sizeof(struct PageInfo)/PGSIZE);
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -186,6 +187,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -198,6 +200,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, (KSTACKTOP - KSTKSIZE), KSTKSIZE, PADDR(bootstack), PTE_W | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -207,6 +210,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KERNBASE, (size_t)(0-KERNBASE), 0, PTE_W | PTE_P);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -231,6 +235,13 @@ mem_init(void)
 
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
+
+	int i;
+	for(i=0; i<1024; i++)
+	{
+		if(kern_pgdir[i] & PTE_P)
+			cprintf("%4d %p\n", i, PGADDR(i, 0, 0));
+	}
 }
 
 // --------------------------------------------------------------
@@ -324,6 +335,7 @@ page_free(struct PageInfo *pp)
 {
 	if(pp->pp_ref == 0)
 	{
+		kernlog("page_free: page %d released\n", PGNUM(page2pa(pp)));
 		pp->pp_link = page_free_list;
 		page_free_list = pp;
 	}
@@ -340,6 +352,7 @@ page_free(struct PageInfo *pp)
 void
 page_decref(struct PageInfo* pp)
 {
+	kernlog("page_decref(page=%d)\n", PGNUM(page2pa(pp)));
 	if (--pp->pp_ref == 0)
 		page_free(pp);
 }
@@ -379,22 +392,23 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		if(!create)
 			return NULL;
 
-		struct PageInfo* pageDesc = page_alloc(true);
+		// alloc a page of memory for page table
+		struct PageInfo* pageDesc = page_alloc(ALLOC_ZERO);
 
 		if(!pageDesc)
 			return NULL;
 
 		pageDesc->pp_ref++;
-		pageDesc->pp_ref = NULL;
+		pageDesc->pp_link = NULL;
 
 		physaddr_t pagePhysAddr = page2pa(pageDesc);
-		uint32_t pgdirEntityOldFloags = pgdirEntity & 0xFFF;
+		uint32_t pgdirEntityOldFlags = pgdirEntity & 0xFFF;
 
-		pgdirEntity = pgdirEntityOldFloags | pagePhysAddr | PTE_P | PTE_U | PTE_W;
+		pgdirEntity = pgdirEntityOldFlags | pagePhysAddr | PTE_P | PTE_U | PTE_W;
 		pgdir[index] = pgdirEntity;  // write back
 	}
 
-	return (pte_t*)KADDR((PTE_ADDR(pgdirEntity) | PTX(linearAddr)));
+	return (pte_t*)KADDR(PTE_ADDR(pgdirEntity)) + PTX(va);
 }
 
 //
@@ -416,19 +430,9 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 
 	for(offset = 0; offset < size; offset += PGSIZE)
 	{
-		pte_t* pageTableEntityPtr = pgdir_walk(pgdir, va + offset, true);
-		*pageTableEntityPtr = (pa + offset) | perm | PTE_P;
-	}ffff
-
-
-
-
-
-
-
-
-
-
+		pte_t* pageTableEntityPtr = pgdir_walk(pgdir, (const void*)(va + offset), true);
+		*pageTableEntityPtr = PTE_ADDR(pa + offset) | perm | PTE_P;
+	}
 }
 
 //
@@ -445,13 +449,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 //
 // Corner-case hint: Make sure to consider what happens when the same
 // pp is re-inserted at the same virtual address in the same pgdir.
-
-
-
-
-
-
-
+// However, try not to distinguish this case in your code, as this
 // frequently leads to subtle bugs; there's an elegant way to handle
 // everything in one code path.
 //
@@ -465,17 +463,32 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
+	kernlog("page_insert(page=%d, va=%p, perm=%d)\n", PGNUM(page2pa(pp)), va, perm);
+
 	// find already existed page
-	pte_t* pageTableEntityPtr = pgdir_walk(pgdir, va, false);
+	pte_t* pageTableEntryPtr = pgdir_walk(pgdir, va, true);
+
+	kernlog("page_insert: pte ptr = %p\n", pageTableEntryPtr);
+
+	if(!pageTableEntryPtr)
+		return -E_NO_MEM;
+
+	// hold one referance of the page
+	pp->pp_ref++;
 
 	// if found, remove the page
-	if(pageTableEntityPtr)
+	if(*pageTableEntryPtr & PTE_P)
 		page_remove(pgdir, va);
 
-	// then try to map
+	// then try to map va to pp
+	pp->pp_ref++;
+	(*pageTableEntryPtr) = PTE_ADDR(page2pa(pp)) | perm | PTE_P;
 
+	kernlog("page_insert: set pte [%p] = 0x%08x\n", pageTableEntryPtr, *pageTableEntryPtr);
 
-
+	// release one reference of the page and deal with tlb
+	page_decref(pp);
+	tlb_invalidate(pgdir, va);
 
 	return 0;
 }
@@ -494,7 +507,16 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
+	kernlog("page_lookup(va=%p)\n", va);
+	pte_t* pageTableEntryPtr = pgdir_walk(pgdir, va, false);
+
+	if(pageTableEntryPtr && (*pageTableEntryPtr & PTE_P))
+	{
+		if(pte_store)
+			*pte_store = pageTableEntryPtr;
+		return pa2page(PTE_ADDR(*pageTableEntryPtr));
+	}
+
 	return NULL;
 }
 
@@ -516,7 +538,17 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+	kernlog("page_remove(va=%p)\n", va);
+	pte_t* pageTableEntryPtr;
+	struct PageInfo* pageInfo = page_lookup(pgdir, va, &pageTableEntryPtr);
+
+	if(pageInfo)
+	{
+		page_decref(pageInfo);
+		*pageTableEntryPtr = 0;
+
+		tlb_invalidate(pgdir, va);
+	}
 }
 
 //
@@ -590,8 +622,6 @@ check_page_free_list(bool only_low_memory)
 		else
 			++nfree_extmem;
 	}
-
-	cprintf("#3");
 
 	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
@@ -738,10 +768,16 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 
 	pgdir = &pgdir[PDX(va)];
 	if (!(*pgdir & PTE_P))
+	{
+		kernlog("pgdir entry not exist\n");
 		return ~0;
+	}
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
 	if (!(p[PTX(va)] & PTE_P))
+	{
+		kernlog("page entry not exist. va=%p pte: pagetable[%d] ([%p]) = %p\n", va, PTX(va), p, p[PTX(va)]);
 		return ~0;
+	}
 	return PTE_ADDR(p[PTX(va)]);
 }
 

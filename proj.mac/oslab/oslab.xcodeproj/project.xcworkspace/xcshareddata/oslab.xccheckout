@@ -5,7 +5,7 @@
 	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
 	<false/>
 	<key>IDESourceControlProjectIdentifier</key>
-	<string>41110459-7105-43BA-81D7-B9F39DE756E8</string>
+	<string>30D02330-06B2-485A-87FA-1F8130A7E509</string>
 	<key>IDESourceControlProjectName</key>
 	<string>oslab</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
@@ -34,7 +34,7 @@
 			<key>IDESourceControlWCCIdentifierKey</key>
 			<string>CA54B49D-B40C-4AE4-A418-E6887905AE2E</string>
 			<key>IDESourceControlWCCName</key>
-			<string>lab</string>
+			<string>oslab</string>
 		</dict>
 	</array>
 </dict>
