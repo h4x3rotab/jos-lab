@@ -163,12 +163,13 @@ mem_init(void)
 	// Your code goes here:
 
 	pages = (struct PageInfo *)boot_alloc(npages * sizeof(struct PageInfo));
-	cprintf("-------%x\n", npages * sizeof(struct PageInfo)/PGSIZE);
 
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+
+	envs = (struct Env*)boot_alloc(NENV * sizeof(struct Env));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -201,6 +202,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
+	boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -248,13 +250,6 @@ mem_init(void)
 
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
-
-	int i;
-	for(i=0; i<1024; i++)
-	{
-		if(kern_pgdir[i] & PTE_P)
-			cprintf("%4d %p\n", i, PGADDR(i, 0, 0));
-	}
 }
 
 // --------------------------------------------------------------
@@ -348,7 +343,7 @@ page_free(struct PageInfo *pp)
 {
 	if(pp->pp_ref == 0)
 	{
-		kernlog("page_free: page %d released\n", PGNUM(page2pa(pp)));
+		//kernlog("page_free: page %d released\n", PGNUM(page2pa(pp)));
 		pp->pp_link = page_free_list;
 		page_free_list = pp;
 	}
@@ -365,7 +360,7 @@ page_free(struct PageInfo *pp)
 void
 page_decref(struct PageInfo* pp)
 {
-	kernlog("page_decref(page=%d)\n", PGNUM(page2pa(pp)));
+	//kernlog("page_decref(page=%d)\n", PGNUM(page2pa(pp)));
 	if (--pp->pp_ref == 0)
 		page_free(pp);
 }
@@ -476,12 +471,12 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-	kernlog("page_insert(page=%d, va=%p, perm=%d)\n", PGNUM(page2pa(pp)), va, perm);
+//	kernlog("page_insert(page=%d, va=%p, perm=%d)\n", PGNUM(page2pa(pp)), va, perm);
 
 	// find already existed page
 	pte_t* pageTableEntryPtr = pgdir_walk(pgdir, va, true);
 
-	kernlog("page_insert: pte ptr = %p\n", pageTableEntryPtr);
+	//kernlog("page_insert: pte ptr = %p\n", pageTableEntryPtr);
 
 	if(!pageTableEntryPtr)
 		return -E_NO_MEM;
@@ -497,7 +492,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	pp->pp_ref++;
 	(*pageTableEntryPtr) = PTE_ADDR(page2pa(pp)) | perm | PTE_P;
 
-	kernlog("page_insert: set pte [%p] = 0x%08x\n", pageTableEntryPtr, *pageTableEntryPtr);
+	//kernlog("page_insert: set pte [%p] = 0x%08x\n", pageTableEntryPtr, *pageTableEntryPtr);
 
 	// release one reference of the page and deal with tlb
 	page_decref(pp);
@@ -520,7 +515,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	kernlog("page_lookup(va=%p)\n", va);
+	//kernlog("page_lookup(va=%p)\n", va);
 	pte_t* pageTableEntryPtr = pgdir_walk(pgdir, va, false);
 
 	if(pageTableEntryPtr && (*pageTableEntryPtr & PTE_P))
@@ -551,7 +546,7 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	kernlog("page_remove(va=%p)\n", va);
+	//kernlog("page_remove(va=%p)\n", va);
 	pte_t* pageTableEntryPtr;
 	struct PageInfo* pageInfo = page_lookup(pgdir, va, &pageTableEntryPtr);
 
@@ -600,8 +595,29 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+    uint32_t begin = ROUNDDOWN((uint32_t)va, PGSIZE);
+    uint32_t end = ROUNDUP((uint32_t)va + len, PGSIZE);
 
-	return 0;
+//    if(end >= ULIM)
+//    {
+//        user_mem_check_addr = ULIM;
+//        return -E_FAULT;
+//    }
+
+    for(; begin<end; begin+=PGSIZE)
+    {
+        pte_t* ptePtr = NULL;
+        if(!page_lookup(env->env_pgdir, (void*)begin, &ptePtr) || !(*ptePtr & perm))
+        {
+            if(begin < (uint32_t)va)
+                user_mem_check_addr = (uintptr_t)va;
+            else
+                user_mem_check_addr = (uintptr_t)begin;
+
+            return -E_FAULT;
+        }
+    }
+    return 0;
 }
 
 //

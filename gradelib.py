@@ -414,6 +414,7 @@ class Runner():
             self.__react(self.reactors, timeout)
         finally:
             # Shutdown QEMU
+            #time.sleep(4)
             try:
                 if self.gdb is None:
                     sys.exit(1)
@@ -426,7 +427,10 @@ class Runner():
 Failed to shutdown QEMU.  You might need to 'killall qemu' or
 'killall qemu.real'.
 """)
-                raise
+                os.system("killall qemu")
+                os.system("killall i386-jos-elf-gdb")
+                #raise
+            #time.sleep(4);
 
     def __monitor_start(self, output):
         if "\n" in output:

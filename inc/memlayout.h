@@ -13,9 +13,9 @@
 
 // Global descriptor numbers
 #define GD_KT     0x08     // kernel text
-#define GD_KD     0x10     // kernel data
-#define GD_UT     0x18     // user text
-#define GD_UD     0x20     // user data
+#define GD_KD     0x10     // kernel data (k.text+8)
+#define GD_UT     0x18     // user text   (k.text+16)
+#define GD_UD     0x20     // user data   (k.text+24)
 #define GD_TSS0   0x28     // Task segment selector for CPU 0
 
 /*

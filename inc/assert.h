@@ -17,7 +17,7 @@ void _panic(const char*, int, const char*, ...) __attribute__((noreturn));
 // static_assert(x) will generate a compile-time error if 'x' is false.
 #define static_assert(x)	switch (x) case 0: case (x):
 
-#define kern_debug 0
+#define kern_debug 1
 
 #if kern_debug
 	#define dbgdo(...) __VA_ARGS__

@@ -10,6 +10,7 @@
 #include <kern/kclock.h>
 #include <kern/env.h>
 #include <kern/trap.h>
+#include <kern/syscall.h>
 
 
 void
@@ -38,6 +39,8 @@ i386_init(void)
 	// Lab 3 user environment initialization functions
 	env_init();
 	trap_init();
+	fastsyscall_init(); // Must put after trap_init, because this relies on Taskstack tss0,
+	                    // which is initialized by trap_init()
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!

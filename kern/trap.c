@@ -10,6 +10,7 @@
 #include <kern/syscall.h>
 
 static struct Taskstate ts;
+struct Taskstate *tss0ptr = &ts;    // refered by fastsyscall_init()
 
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some
@@ -65,6 +66,31 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+#define TrapDefine(trap, handler, istrap, dpl) \
+	extern void handler(); \
+	SETGATE(idt[trap], istrap, GD_KT, &handler, dpl)
+
+	//         trap         handler             T DPL
+	TrapDefine(T_DIVIDE, 	trap_divide_zero, 	1, 0);
+	TrapDefine(T_DEBUG, 	trap_debug, 		1, 0);
+	TrapDefine(T_NMI, 		trap_nmi, 			0, 0);
+	TrapDefine(T_BRKPT, 	trap_breakpoint, 	1, 3);
+	TrapDefine(T_OFLOW, 	trap_overflow, 		1, 3);
+	TrapDefine(T_BOUND, 	trap_bound, 		1, 3);
+	TrapDefine(T_ILLOP, 	trap_opcode, 		1, 3);
+	TrapDefine(T_DEVICE, 	trap_device, 		1, 3);
+	TrapDefine(T_DBLFLT, 	trap_double_fault, 	1, 3);
+	TrapDefine(T_TSS,	 	trap_invalid_tss,	1, 3);
+	TrapDefine(T_SEGNP, 	trap_segment,	 	1, 3);
+	TrapDefine(T_STACK, 	trap_stack, 		1, 3);
+	TrapDefine(T_GPFLT, 	trap_general, 		1, 3);
+	TrapDefine(T_PGFLT, 	trap_page_fault, 	1, 0);
+	TrapDefine(T_FPERR, 	trap_fpuerr, 		1, 3);
+	TrapDefine(T_ALIGN, 	trap_alignment, 	1, 3);
+	TrapDefine(T_MCHK, 		trap_machine, 		1, 3);
+	TrapDefine(T_SIMDERR, 	trap_simd, 			1, 3);
+
+	TrapDefine(T_SYSCALL, 	trap_syscall,		1, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -144,6 +170,14 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 
+	 uint32_t trapno = tf->tf_trapno;
+	 switch(trapno)
+	 {
+	     case T_PGFLT: page_fault_handler(tf); return;
+	     case T_BRKPT: breakpoint_handler(tf); return;
+	     case T_SYSCALL:  syscall_handler(tf); return;
+	 }
+
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -205,6 +239,11 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 3: Your code here.
 
+	if((tf->tf_cs & 3) == 0) // kernel
+	{
+	    panic("Page fault at address:%p EIP:%p\n", fault_va , tf->tf_eip);
+	}
+
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
@@ -215,3 +254,26 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+void
+breakpoint_handler(struct Trapframe *tf)
+{
+    cprintf("[%08x] breakpoint ip %p\n",
+        curenv->env_id, tf->tf_eip);
+
+    monitor(tf);
+}
+
+void
+syscall_handler(struct Trapframe* tf)
+{
+    int32_t eax = syscall(
+        tf->tf_regs.reg_eax,
+        tf->tf_regs.reg_edx,
+        tf->tf_regs.reg_ecx,
+        tf->tf_regs.reg_ebx,
+        tf->tf_regs.reg_edi,
+        tf->tf_regs.reg_esi
+    );
+
+    tf->tf_regs.reg_eax = eax;
+}

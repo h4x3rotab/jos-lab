@@ -39,6 +39,9 @@ void	sys_cputs(const char *string, size_t len);
 int	sys_cgetc(void);
 envid_t	sys_getenvid(void);
 int	sys_env_destroy(envid_t);
+bool sys_sysenter(void);
+
+int32_t fastsyscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4);
 
 
 
