@@ -25,6 +25,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display a backtrace of the current function", mon_backtrace},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -59,7 +60,45 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
+	cprintf("Stack backtrace:\n");
+	uint32_t* ebp = (uint32_t*) read_ebp();
+
+	while(ebp)
+	{
+		uint32_t eip = ebp[1];
+		uint32_t args[5];
+
+		int i;
+		for(i=0; i<5; i++)
+			args[i] = ebp[2+i];
+
+		cprintf("  ebp %08x eip %08x args %08x %08x %08x %08x %08x\n",
+		    (uint32_t)ebp,
+			eip, args[0], args[1], args[2], args[3], args[4]);
+
+		struct Eipdebuginfo debug_info;
+		int result = debuginfo_eip(eip, &debug_info);
+
+		if(result >= 0)
+		{
+			char fn_name_buffer[CMDBUF_SIZE];
+			memcpy(fn_name_buffer, debug_info.eip_fn_name, sizeof(char) * debug_info.eip_fn_namelen);
+			fn_name_buffer[debug_info.eip_fn_namelen] = '\0';
+
+            cprintf("          %s:%d: %s+%d\n",
+			    debug_info.eip_file, debug_info.eip_line,
+				fn_name_buffer,
+				eip - (uint32_t)debug_info.eip_fn_addr);
+
+		}
+		else
+		{
+			cprintf("          Exception %d during printing the debug info\n", result);
+		}
+
+		ebp = (uint32_t*)*ebp;
+	}
+
 	return 0;
 }
 

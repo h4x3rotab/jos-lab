@@ -10,6 +10,7 @@
 #include <kern/kclock.h>
 #include <kern/env.h>
 #include <kern/trap.h>
+#include <kern/syscall.h>
 #include <kern/sched.h>
 #include <kern/picirq.h>
 #include <kern/cpu.h>
@@ -34,12 +35,18 @@ i386_init(void)
 
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
+	cprintf("------------\n");
+	cprintf("   \033[34mJ \033[32mO \033[31mS \033[37m!\n");
+	cprintf("------------\n");
+
 	// Lab 2 memory management initialization functions
 	mem_init();
 
 	// Lab 3 user environment initialization functions
 	env_init();
 	trap_init();
+	fastsyscall_init(); // Must put after trap_init, because this relies on Taskstack tss0,
+	                    // which is initialized by trap_init()
 
 	// Lab 4 multiprocessor initialization functions
 	mp_init();
