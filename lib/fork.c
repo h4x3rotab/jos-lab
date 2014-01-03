@@ -126,13 +126,13 @@ duppage(envid_t envid, unsigned pn)
     assert(uvpt[PGNUM(vaddr)] & PTE_P); // page existed at pgtable
     
     pte_t pte = uvpt[PGNUM(vaddr)];
-    int oldPerm = pte & 0xF0F;
+    int oldPerm = pte & PTE_SYSCALL;
     int newPerm = oldPerm;
     
     newPerm &= ~PTE_W;
     newPerm |= PTE_COW;
     
-    if((pte & PTE_W) || (pte & PTE_COW))
+    if(((pte & PTE_W) || (pte & PTE_COW)) && !(pte & PTE_SHARE))
     {
         r = sys_page_map(0, va, envid, va, newPerm);
         if(r < 0) panic("duppage: sys_page_map target error - %e", r);
@@ -141,7 +141,12 @@ duppage(envid_t envid, unsigned pn)
         r = sys_page_map(0, va, 0, va, newPerm);
         if(r < 0) panic("duppage: sys_page_map self - %e", r);
     }
-    else panic("WTF vaddr at %p is USER READONLY?", vaddr);
+    else
+    {
+        // in case of the read-only page
+        // (e.g. user-text segment loaded by shell)
+        r = sys_page_map(0, va, envid, va, oldPerm);
+    }
 
 	return 0;
 }

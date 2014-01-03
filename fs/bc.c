@@ -34,6 +34,18 @@ bc_pgfault(struct UTrapframe *utf)
 	//
 	// LAB 5: you code here:
 
+    int perm = PTE_U | PTE_W | PTE_P;
+    uint32_t vaddr = ROUNDDOWN((uint32_t)addr, PGSIZE);
+    void* va = (void*)vaddr;
+    
+    r = sys_page_alloc(0, va, perm);
+    if(r < 0) panic("bc_pgfault: sys_page_alloc error - %e", r);
+    
+    size_t nsecs = BLKSIZE / SECTSIZE;
+    uint32_t secno = blockno * nsecs;
+    
+    r = ide_read(secno, va, nsecs);
+    if(r < 0) panic("bc_pgfault: ide_read error - %e", r);
 }
 
 

@@ -301,6 +301,27 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+    int pn, result;
+    
+    for(pn = 0; pn < PGNUM(USTACKTOP); pn++)
+    {
+        uintptr_t vaddr = pn << PGSHIFT;
+        if(!(uvpd[PDX(vaddr)] & PTE_P))
+            continue;
+        
+        pte_t pte = uvpt[pn];
+        int perm = pte & PTE_SYSCALL;
+        
+        if((pte & PTE_P) && (pte & PTE_SHARE))
+        {
+            void* va = (void*)vaddr;
+         
+            // map shared page
+            result = sys_page_map(0, va, child, va, perm);
+            if(result < 0) return result;
+        }
+    }
+    
 	return 0;
 }
 
