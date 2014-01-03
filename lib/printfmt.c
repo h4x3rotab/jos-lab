@@ -101,7 +101,80 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		while ((ch = *(unsigned char *) fmt++) != '%') {
 			if (ch == '\0')
 				return;
-			putch(ch, putdat);
+
+			if (ch == '\033')
+			{
+
+#define POP(x)     (*(unsigned char*) (x)++)
+#define PEEK(x)    (*(unsigned char*) (x))
+#define EAT(x, ch) if (PEEK(x) == (ch)) POP(x); else goto ERROR;
+
+				int state = 1;
+				int subtype = 0;
+				int color_back = 0;
+				int color_fore = 7;
+			
+				while(state != 6)
+				{
+					switch(state)
+					{
+						case 1:
+							EAT(fmt, '[');
+							state = 2;
+							break;
+
+						case 2:
+							switch(POP(fmt))
+							{
+								case '3': state = 3; subtype = 1; break;
+								case '4': state = 3; subtype = 2; break;
+								default: goto ERROR;
+							}
+							break;
+
+						case 3:
+							ch = POP(fmt);
+							if('0' <= ch && ch <= '9')
+							{
+								switch(subtype)
+								{
+									case 1: color_fore = ch - '0'; break;
+									case 2: color_back = ch - '0'; break;
+									default: goto ERROR;
+								}
+								state = 4;
+							}
+							else goto ERROR;
+							break;
+							
+						case 4:
+							switch(POP(fmt))
+							{
+								case 'm': state = 5; break;
+								case ';': state = 2; break;
+								default: goto ERROR;
+							}
+							break;
+						case 5:
+							//send color to tty
+							putch((color_fore << 8) | (color_back << 10) | '\033', NULL);
+							state = 6;
+							break;
+
+						ERROR:
+							while(fmt[-1] != '\033') fmt--;
+							state = 6;
+							break;
+					}
+					
+				}
+
+
+			}
+			else
+			{
+				putch(ch, putdat);
+			}
 		}
 
 		// Process a %-escape sequence
@@ -214,11 +287,18 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 
 		// (unsigned) octal
 		case 'o':
-			// Replace this with your code.
-			putch('X', putdat);
-			putch('X', putdat);
-			putch('X', putdat);
-			break;
+			//// Replace this with your code.
+			//putch('X', putdat);
+			//putch('X', putdat);
+			//putch('X', putdat);
+			//break;
+			num = getint(&ap, lflag);
+			if ((long long) num < 0) {
+				putch('-', putdat);
+				num = -(long long) num;
+			}
+			base = 8;
+			goto number;
 
 		// pointer
 		case 'p':

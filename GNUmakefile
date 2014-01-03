@@ -7,6 +7,8 @@
 #
 OBJDIR := obj
 
+PATH := "/opt/iOSOpenDev/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/Users/h4x/bin:/Users/h4x/android-sdk/platform-tools:/Users/h4x/android-sdk/tools:/Users/h4x/android-ndk"
+
 # Run 'make V=1' to turn on verbose commands, or 'make V=0' to turn them off.
 ifeq ($(V),1)
 override V =

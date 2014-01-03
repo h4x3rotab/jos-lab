@@ -27,16 +27,22 @@ void spin_unlock(struct spinlock *lk);
 
 extern struct spinlock kernel_lock;
 
+#include <kern/cpu.h>
+
 static inline void
 lock_kernel(void)
 {
+    //kernlog("KERNLOCK: cpu %d requesting\n", cpunum());
 	spin_lock(&kernel_lock);
+    //kernlog("KERNLOCK: cpu %d hold the lock\n", cpunum());
 }
 
 static inline void
 unlock_kernel(void)
 {
+    //kernlog("KERNLOCK: cpu %d unlocking\n", cpunum());
 	spin_unlock(&kernel_lock);
+    //kernlog("KERNLOCK: cpu %d unlocked\n", cpunum());
 
 	// Normally we wouldn't need to do this, but QEMU only runs
 	// one CPU at a time and has a long time-slice.  Without the

@@ -12,7 +12,7 @@ umain(int argc, char **argv)
 	if ((env = fork()) == 0) {
 		cprintf("I am the child.  Spinning...\n");
 		while (1)
-			/* do nothing */;
+            /* do nothing */;
 	}
 
 	cprintf("I am the parent.  Running the child...\n");

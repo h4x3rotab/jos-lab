@@ -50,7 +50,115 @@
 
 
 
-/*
- * Lab 3: Your code here for _alltraps
- */
 
+
+
+
+
+
+
+/*
+    0   "Divide error",
+        "Debug",
+        "Non-Maskable Interrupt",
+        "Breakpoint",
+        "Overflow",
+        "BOUND Range Exceeded",
+        "Invalid Opcode",
+        "Device Not Available",
+        "Double Fault",
+        "Coprocessor Segment Overrun",
+   10   "Invalid TSS",
+        "Segment Not Present",
+        "Stack Fault",
+        "General Protection",
+        "Page Fault",
+        "(unknown trap)",
+        "x87 FPU Floating-Point Error",
+        "Alignment Check",
+        "Machine-Check",
+        "SIMD Floating-Point Exception"*/
+TRAPHANDLER_NOEC(trap_divide_zero,  T_DIVIDE);
+TRAPHANDLER_NOEC(trap_debug,        T_DEBUG);
+TRAPHANDLER_NOEC(trap_nmi,          T_NMI);
+TRAPHANDLER_NOEC(trap_breakpoint,   T_BRKPT);
+TRAPHANDLER_NOEC(trap_overflow,     T_OFLOW);
+TRAPHANDLER_NOEC(trap_bound,        T_BOUND);
+TRAPHANDLER_NOEC(trap_opcode,       T_ILLOP);
+TRAPHANDLER_NOEC(trap_device,       T_DEVICE);
+     TRAPHANDLER(trap_double_fault, T_DBLFLT);
+     //reserver
+     TRAPHANDLER(trap_invalid_tss,  T_TSS);
+     TRAPHANDLER(trap_segment,      T_SEGNP);
+     TRAPHANDLER(trap_stack,        T_STACK);
+     TRAPHANDLER(trap_general,      T_GPFLT);
+     TRAPHANDLER(trap_page_fault,   T_PGFLT);
+     //reserve
+TRAPHANDLER_NOEC(trap_fpuerr,       T_FPERR);
+     TRAPHANDLER(trap_alignment,    T_ALIGN);
+TRAPHANDLER_NOEC(trap_machine,      T_MCHK);
+TRAPHANDLER_NOEC(trap_simd,         T_SIMDERR);
+TRAPHANDLER_NOEC(trap_syscall,      T_SYSCALL); //?
+TRAPHANDLER_NOEC(trap_default,      T_DEFAULT); //?
+
+TRAPHANDLER_NOEC(irq_0,  IRQ_OFFSET+0)
+TRAPHANDLER_NOEC(irq_1,  IRQ_OFFSET+1)
+TRAPHANDLER_NOEC(irq_2,  IRQ_OFFSET+2)
+TRAPHANDLER_NOEC(irq_3,  IRQ_OFFSET+3)
+TRAPHANDLER_NOEC(irq_4,  IRQ_OFFSET+4)
+TRAPHANDLER_NOEC(irq_5,  IRQ_OFFSET+5)
+TRAPHANDLER_NOEC(irq_6,  IRQ_OFFSET+6)
+TRAPHANDLER_NOEC(irq_7,  IRQ_OFFSET+7)
+TRAPHANDLER_NOEC(irq_8,  IRQ_OFFSET+8)
+TRAPHANDLER_NOEC(irq_9,  IRQ_OFFSET+9)
+TRAPHANDLER_NOEC(irq_10, IRQ_OFFSET+10)
+TRAPHANDLER_NOEC(irq_11, IRQ_OFFSET+11)
+TRAPHANDLER_NOEC(irq_12, IRQ_OFFSET+12)
+TRAPHANDLER_NOEC(irq_13, IRQ_OFFSET+13)
+TRAPHANDLER_NOEC(irq_14, IRQ_OFFSET+14)
+TRAPHANDLER_NOEC(irq_15, IRQ_OFFSET+15)
+
+
+
+
+
+
+
+
+
+
+
+
+
+_alltraps:
+
+    pushl   %ds     // push DS
+    pushl   %es     // push ES
+    pushal          // push all regs
+
+    // set DS&ES
+    movw    $(GD_KD), %ax
+    movw    %ax, %ds
+    movw    %ax, %es
+
+    // call trap(ESP)
+    pushl   %esp
+    call    trap
+
+    jmp _never_reach_here
+
+
+.global fastsyscall_entry
+fastsyscall_entry:
+    // (no need to disable interrupt)
+
+    // fastsyscall_handler(orig_esp)
+    push    %ebp
+    call    fastsyscall_handler
+
+    jmp _never_reach_here
+
+
+_never_reach_here:
+    int3
+    jmp _never_reach_here

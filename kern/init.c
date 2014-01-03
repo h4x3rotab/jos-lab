@@ -10,6 +10,7 @@
 #include <kern/kclock.h>
 #include <kern/env.h>
 #include <kern/trap.h>
+#include <kern/syscall.h>
 #include <kern/sched.h>
 #include <kern/picirq.h>
 #include <kern/cpu.h>
@@ -34,6 +35,10 @@ i386_init(void)
 
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
+	cprintf("------------\n");
+	cprintf("   \033[34mJ \033[32mO \033[31mS \033[37m!\n");
+	cprintf("------------\n");
+
 	// Lab 2 memory management initialization functions
 	mem_init();
 
@@ -50,6 +55,7 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
+    lock_kernel();
 
 	// Starting non-boot CPUs
 	boot_aps();
@@ -122,6 +128,8 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+    lock_kernel();
+    sched_yield();
 
 	// Remove this after you finish Exercise 4
 	for (;;);

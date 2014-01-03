@@ -11,7 +11,7 @@ void sched_halt(void);
 void
 sched_yield(void)
 {
-	struct Env *idle;
+	struct Env *idle = NULL;
 
 	// Implement simple round-robin scheduling.
 	//
@@ -29,6 +29,32 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
+    
+    int i, begin = 0;
+    if(curenv)
+    {
+        begin = curenv->env_id + 1;
+        begin = (begin == NENV) ? 0: begin;
+    }
+    
+    for(i=0; i<NENV; i++)
+    {
+        int idx = ENVX(begin + i);
+        if(envs[idx].env_status == ENV_RUNNABLE)
+        {
+            idle = &(envs[idx]);    // found new idle env
+            break;
+        }
+    }
+    
+    if(!idle)   // not found idle
+    {
+        if(curenv && curenv->env_status == ENV_RUNNING) // and prev env is running
+            idle = curenv;  // select prev env
+    }
+    
+    if(idle)
+        env_run(idle);  // stop prev env and start new env
 
 	// sched_halt never returns
 	sched_halt();
@@ -67,7 +93,9 @@ sched_halt(void)
 
 	// Release the big kernel lock as if we were "leaving" the kernel
 	unlock_kernel();
-
+    
+    //asm volatile ("orz: pause; jmp orz;");
+    
 	// Reset stack pointer, enable interrupts and then halt.
 	asm volatile (
 		"movl $0, %%ebp\n"
@@ -77,5 +105,6 @@ sched_halt(void)
 		"sti\n"
 		"hlt\n"
 	: : "a" (thiscpu->cpu_ts.ts_esp0));
+    
 }
 
