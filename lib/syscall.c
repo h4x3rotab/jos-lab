@@ -144,11 +144,13 @@ sys_getenvid(void)
 	 return syscall(SYS_getenvid, 0, 0, 0, 0, 0, 0);
 }
 
-<<<<<<< HEAD
 void
 sys_yield(void)
 {
-	syscall(SYS_yield, 0, 0, 0, 0, 0, 0);
+    // !! sys_yield need to store trap frame, thus fast system call is unsupported
+    
+	//syscall(SYS_yield, 0, 0, 0, 0, 0, 0);
+    syscall_trap(SYS_yield, 0, 0, 0, 0, 0, 0);
 }
 
 int
@@ -192,7 +194,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, int perm)
 int
 sys_ipc_recv(void *dstva)
 {
-	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
+	return syscall_trap(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
 bool

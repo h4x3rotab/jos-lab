@@ -9,6 +9,6 @@
 int32_t syscall(uint32_t num, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5);
 bool syscall_support();
 
-void fastsyscall_init(void);
+void fastsyscall_init(struct Taskstate* tss);
 
 #endif /* !JOS_KERN_SYSCALL_H */

@@ -87,7 +87,7 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// then check the env_id field in that struct Env
 	// to ensure that the envid is not stale
 	// (i.e., does not refer to a _previous_ environment
-	// that used the same slot in the envs[] array).
+	// that used the same slot in the e[] array).
 	e = &envs[ENVX(envid)];
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
 		*env_store = 0;
@@ -264,6 +264,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+    e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
@@ -395,13 +396,13 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 		{
 			if(progHeaders[i].p_type == ELF_PROG_LOAD)
 			{
-				kernlog("Load Segment[%d]: va %p size %p\n", i, progHeaders[i].p_va, progHeaders[i].p_memsz);
+				//kernlog("Load Segment[%d]: va %p size %p\n", i, progHeaders[i].p_va, progHeaders[i].p_memsz);
 				region_alloc(e, (void*)progHeaders[i].p_va, progHeaders[i].p_memsz);
 				memset((void*)(progHeaders[i].p_va + progHeaders[i].p_filesz), 0, progHeaders[i].p_memsz - progHeaders[i].p_filesz);
 				memcpy((void*)progHeaders[i].p_va, (void*)(binary + progHeaders[i].p_offset), progHeaders[i].p_filesz);
 
-				kernlog("Load Segment[%d]: memset [%p, %p)\n", i,
-				        progHeaders[i].p_va + progHeaders[i].p_filesz, progHeaders[i].p_va + progHeaders[i].p_filesz + progHeaders[i].p_memsz - progHeaders[i].p_filesz);
+				//kernlog("Load Segment[%d]: memset [%p, %p)\n", i,
+				//        progHeaders[i].p_va + progHeaders[i].p_filesz, progHeaders[i].p_va + progHeaders[i].p_filesz + progHeaders[i].p_memsz - progHeaders[i].p_filesz);
 				int b = 0;
 				for(b=0; b<(progHeaders[i].p_memsz - progHeaders[i].p_filesz)/4; b++)
 				    ((uint32_t*)(progHeaders[i].p_va + progHeaders[i].p_filesz))[b] = 1,
@@ -593,6 +594,7 @@ env_run(struct Env *e)
 		lcr3(PADDR(curenv->env_pgdir));
 	}
 
+    unlock_kernel();
 	env_pop_tf(&curenv->env_tf);
 }
 

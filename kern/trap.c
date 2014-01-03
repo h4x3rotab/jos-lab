@@ -14,8 +14,8 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 
-static struct Taskstate ts;
-struct Taskstate *tss0ptr = &ts;    // refered by fastsyscall_init()
+//static struct Taskstate ts;
+//struct Taskstate *tss0ptr = &ts;    // refered by fastsyscall_init()
 
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some
@@ -76,28 +76,44 @@ trap_init(void)
 #define TrapDefine(trap, handler, istrap, dpl) \
 	extern void handler(); \
 	SETGATE(idt[trap], istrap, GD_KT, &handler, dpl)
-
-	//         trap         handler             T DPL
-	TrapDefine(T_DIVIDE, 	trap_divide_zero, 	1, 0);
-	TrapDefine(T_DEBUG, 	trap_debug, 		1, 0);
+    
+	TrapDefine(T_DIVIDE, 	trap_divide_zero, 	0, 0);
+	TrapDefine(T_DEBUG, 	trap_debug, 		0, 0);
 	TrapDefine(T_NMI, 		trap_nmi, 			0, 0);
-	TrapDefine(T_BRKPT, 	trap_breakpoint, 	1, 3);
-	TrapDefine(T_OFLOW, 	trap_overflow, 		1, 3);
-	TrapDefine(T_BOUND, 	trap_bound, 		1, 3);
-	TrapDefine(T_ILLOP, 	trap_opcode, 		1, 3);
-	TrapDefine(T_DEVICE, 	trap_device, 		1, 3);
-	TrapDefine(T_DBLFLT, 	trap_double_fault, 	1, 3);
-	TrapDefine(T_TSS,	 	trap_invalid_tss,	1, 3);
-	TrapDefine(T_SEGNP, 	trap_segment,	 	1, 3);
-	TrapDefine(T_STACK, 	trap_stack, 		1, 3);
-	TrapDefine(T_GPFLT, 	trap_general, 		1, 3);
-	TrapDefine(T_PGFLT, 	trap_page_fault, 	1, 0);
-	TrapDefine(T_FPERR, 	trap_fpuerr, 		1, 3);
-	TrapDefine(T_ALIGN, 	trap_alignment, 	1, 3);
-	TrapDefine(T_MCHK, 		trap_machine, 		1, 3);
-	TrapDefine(T_SIMDERR, 	trap_simd, 			1, 3);
-
-	TrapDefine(T_SYSCALL, 	trap_syscall,		1, 3);
+	TrapDefine(T_BRKPT, 	trap_breakpoint, 	0, 3);
+	TrapDefine(T_OFLOW, 	trap_overflow, 		0, 0);
+	TrapDefine(T_BOUND, 	trap_bound, 		0, 0);
+	TrapDefine(T_ILLOP, 	trap_opcode, 		0, 0);
+	TrapDefine(T_DEVICE, 	trap_device, 		0, 0);
+	TrapDefine(T_DBLFLT, 	trap_double_fault, 	0, 0);
+	TrapDefine(T_TSS,	 	trap_invalid_tss,	0, 0);
+	TrapDefine(T_SEGNP, 	trap_segment,	 	0, 0);
+	TrapDefine(T_STACK, 	trap_stack, 		0, 0);
+	TrapDefine(T_GPFLT, 	trap_general, 		0, 0);
+	TrapDefine(T_PGFLT, 	trap_page_fault, 	0, 0);
+	TrapDefine(T_FPERR, 	trap_fpuerr, 		0, 0);
+	TrapDefine(T_ALIGN, 	trap_alignment, 	0, 0);
+	TrapDefine(T_MCHK, 		trap_machine, 		0, 0);
+	TrapDefine(T_SIMDERR, 	trap_simd, 			0, 0);
+    
+	TrapDefine(T_SYSCALL, 	trap_syscall,		0, 3);
+    
+    TrapDefine(IRQ_OFFSET+0,  irq_0,  0, 0);
+    TrapDefine(IRQ_OFFSET+1,  irq_1,  0, 0);
+    TrapDefine(IRQ_OFFSET+2,  irq_2,  0, 0);
+    TrapDefine(IRQ_OFFSET+3,  irq_3,  0, 0);
+    TrapDefine(IRQ_OFFSET+4,  irq_4,  0, 0);
+    TrapDefine(IRQ_OFFSET+5,  irq_5,  0, 0);
+    TrapDefine(IRQ_OFFSET+6,  irq_6,  0, 0);
+    TrapDefine(IRQ_OFFSET+7,  irq_7,  0, 0);
+    TrapDefine(IRQ_OFFSET+8,  irq_8,  0, 0);
+    TrapDefine(IRQ_OFFSET+9,  irq_9,  0, 0);
+    TrapDefine(IRQ_OFFSET+10, irq_10, 0, 0);
+    TrapDefine(IRQ_OFFSET+11, irq_11, 0, 0);
+    TrapDefine(IRQ_OFFSET+12, irq_12, 0, 0);
+    TrapDefine(IRQ_OFFSET+13, irq_13, 0, 0);
+    TrapDefine(IRQ_OFFSET+14, irq_14, 0, 0);
+    TrapDefine(IRQ_OFFSET+15, irq_15, 0, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -129,23 +145,29 @@ trap_init_percpu(void)
 	// user space on that CPU.
 	//
 	// LAB 4: Your code here:
+    
+    int cpuid = cpunum();
+    struct Taskstate* currentTssPtr = &(thiscpu->cpu_ts);
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
+	currentTssPtr->ts_esp0 = KSTACKTOP - cpuid * (KSTKSIZE + KSTKGAP);
+	currentTssPtr->ts_ss0 = GD_KD;
 
 	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
+	gdt[(GD_TSS0 >> 3) + cpuid] = SEG16(STS_T32A, (uint32_t) (currentTssPtr),
 					sizeof(struct Taskstate), 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + cpuid].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
+	ltr(GD_TSS0 + cpuid*8);
 
 	// Load the IDT
 	lidt(&idt_pd);
+    
+    // Initialize fast system call
+    fastsyscall_init(currentTssPtr);
 }
 
 void
@@ -220,6 +242,12 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+    
+    if(tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER)
+    {
+        lapic_eoi();
+        sched_yield();
+    }
 
 
 	// Unexpected trap: The user process or the kernel has a bug.
@@ -259,7 +287,8 @@ trap(struct Trapframe *tf)
 		// serious kernel work.
 		// LAB 4: Your code here.
 		assert(curenv);
-
+        lock_kernel();
+        
 		// Garbage collect if current enviroment is a zombie
 		if (curenv->env_status == ENV_DYING) {
 			env_free(curenv);
@@ -281,7 +310,7 @@ trap(struct Trapframe *tf)
 
 	// Dispatch based on what type of trap occurred
 	trap_dispatch(tf);
-
+    
 	// If we made it to this point, then no other environment was
 	// scheduled, so we should return to the current environment
 	// if doing so makes sense.
@@ -341,19 +370,61 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
-
-	// Destroy the environment that caused the fault.
-	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
-	print_trapframe(tf);
-	env_destroy(curenv);
+    
+    if(curenv->env_pgfault_upcall)
+    {
+        int result;
+        uint32_t stackBegin = (UXSTACKTOP-PGSIZE);
+        uintptr_t stackPtr;
+        
+        struct UTrapframe utf;
+        struct UTrapframe* utfptr;
+        
+        utf.utf_fault_va = fault_va;
+        utf.utf_err = tf->tf_err;
+        utf.utf_regs = tf->tf_regs;
+        utf.utf_eip = tf->tf_eip;
+        utf.utf_eflags = tf->tf_eflags;
+        utf.utf_esp = tf->tf_esp;
+        
+        bool nested = (stackBegin <= tf->tf_esp && tf->tf_esp < UXSTACKTOP);
+        
+        if(!nested)
+        {
+            // save one-word's hole for EIP
+            stackPtr = UXSTACKTOP;
+        }
+        else
+        {
+            // hole for EIP
+            stackPtr = tf->tf_esp - sizeof(uint32_t);
+        }
+        
+        utfptr = (struct UTrapframe*)(stackPtr - sizeof(utf));
+        user_mem_assert(curenv, utfptr, PGSIZE, PTE_U | PTE_W | PTE_P);
+        
+        *utfptr = utf;
+        
+        tf->tf_esp = (stackPtr - sizeof(utf));
+        tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+        env_run(curenv);
+    }
+    else
+    {
+        // Destroy the environment that caused the fault.
+        cprintf("[%08x] user fault va %08x ip %08x\n",
+            curenv->env_id, fault_va, tf->tf_eip);
+        print_trapframe(tf);
+        env_destroy(curenv);
+    }
 }
 
 void
 breakpoint_handler(struct Trapframe *tf)
 {
     cprintf("[%08x] breakpoint ip %p\n",
-        curenv->env_id, tf->tf_eip);
+            (curenv ? curenv->env_id : 0xffffffff),
+            tf->tf_eip);
 
     monitor(tf);
 }

@@ -279,7 +279,13 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+    
+    int i;
+    for (i=0; i<NCPU; i++)
+    {
+        uint32_t kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+        boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W | PTE_P);
+    }
 }
 
 // --------------------------------------------------------------
@@ -326,7 +332,9 @@ page_init(void)
 	for (i = npages - 1; i >= 0; i--)
 	{
 		physaddr_t pagePhysAddr = (physaddr_t)PGADDR(0, i, 0);
-		if (pagePhysAddr == 0 || (IOPHYSMEM <= pagePhysAddr && pagePhysAddr < firstFreePhysAddr))
+		if (pagePhysAddr == 0
+		        || (IOPHYSMEM <= pagePhysAddr && pagePhysAddr < firstFreePhysAddr)
+		        || (pagePhysAddr == MPENTRY_PADDR))
 		{
 			pages[i].pp_ref = 1;
 			pages[i].pp_link = NULL;
@@ -637,7 +645,16 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+
+	if(base >= MMIOLIM)
+	    panic("mmio_map_region: memory overflow!\n");
+
+	uint32_t mappedSize = ROUNDUP(size, PGSIZE);
+	uintptr_t currentBase = base;
+	boot_map_region(kern_pgdir, base, mappedSize, pa, PTE_PCD | PTE_PWT | PTE_W | PTE_P);
+
+	base += mappedSize;
+	return (void*)currentBase;
 }
 
 static uintptr_t user_mem_check_addr;
@@ -926,13 +943,13 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pgdir = &pgdir[PDX(va)];
 	if (!(*pgdir & PTE_P))
 	{
-		kernlog("pgdir entry not exist\n");
+		//kernlog("pgdir entry not exist\n");
 		return ~0;
 	}
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
 	if (!(p[PTX(va)] & PTE_P))
 	{
-		kernlog("page entry not exist. va=%p pte: pagetable[%d] ([%p]) = %p\n", va, PTX(va), p, p[PTX(va)]);
+		//kernlog("page entry not exist. va=%p pte: pagetable[%d] ([%p]) = %p\n", va, PTX(va), p, p[PTX(va)]);
 		return ~0;
 	}
 	return PTE_ADDR(p[PTX(va)]);
